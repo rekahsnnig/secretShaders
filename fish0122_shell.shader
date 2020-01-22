@@ -116,6 +116,19 @@ Shader "Unlit/fish"
             float rand(float2 co){
                 return frac(sin(dot(co.xy ,float2(12.9898,78.233))) * 43758.5453);
             }
+
+            float vnoise(float2 p )
+            {
+                 float2 i = floor( p );
+                 float2 f = frac( p );
+                
+                 float2 u = f*f*(3.0-2.0*f);
+
+                return lerp( lerp( rand( i +  float2(0.0,0.0) ), 
+                                rand( i +  float2(1.0,0.0) ), u.x),
+                            lerp( rand( i +  float2(0.0,1.0) ), 
+                                rand( i +  float2(1.0,1.0) ), u.x), u.y);
+            }
             
             float2 Polar(float2 i)
             {
@@ -236,42 +249,71 @@ Shader "Unlit/fish"
                 p /= scale;
                 data o = (data)100;
                 
+                //0~-2
+                float oc = c(sin(_Time.y),.3)-1.;
+
                 data shelld = (data)100;
                 
-                float3 shellp = p;
-                float3 shellscale = float3(.2,.08,.2);
-                shellscale.x = clamp(shellscale.x + c(shellp.z,-.5),0.1,1.);
+                float3 shellpu = p-float3(0.,0.1,0.1);
+                //float3 shellscale = float3(.2,.08,.2);
+                //shellscale.x = clamp(shellscale.x + c(shellpo.z,-.5),0.1,1.);
+                float3 shellscaleu = float3(.2,.08,.2);
+                shellscaleu.x = clamp(shellscaleu.x + c(shellpu.z,-.5),0.1,1.);
+                shellpu.x = abs(shellpu.x);
+                shellpu.xy = mul(rot(UNITY_PI),shellpu.xy);
                 
-                shellp.x = abs(shellp.x);
+                float3 inspu = shellpu;
+                inspu.y += -sin( 60. * Polar(mul(rot(-UNITY_PI/2.),shellpu.xz) - float2(.15,0.)).x ) *0.01;
+                float inso = ssphere(inspu + float3(0.,0.04,0.),shellscaleu,0.6);
                 
-                shellp.xy = mul(rot(UNITY_PI),shellp.xy);
-                shellp.y += sin( 70. * Polar(mul(rot(-UNITY_PI/2.),shellp.xz) - float2(.15,0.)).x ) *0.01;
-                float shello = ssphere(shellp,shellscale,0.6);
-                shellp.y += 0.01;
+                float3 shellpo = shellpu;
+                shellpo.y += sin( 70. * Polar(mul(rot(-UNITY_PI/2.),shellpo.xz) - float2(.15,0.)).x ) *0.01;
                 
-                //shellscale = mul(RotMat(float3(1.,0.,0.),UNITY_PI/2.),shellscale);
-                //shellscale = shellscale.xzy;
-               // shellscale.yz = abs( mul(rot(UNITY_PI/2.),shellscale.yz) );
-               // shellp.yz = abs( mul(rot(-UNITY_PI/2.),shellp.yz) );
-              //  shellp = mul(RotMat(float3(1.,0.,0.),UNITY_PI/2.),shellp);
-                float shellu = ssphere(shellp,shellscale,0.6);
-                float shell = min(shellu,shello);
+                shellpo.y = (shellpo.y-0.01);
+
+                shellpu.y = (shellpu.y+0.03);
                 
-                //shell = max(shell , -ssphere(shellp,1.,0.5));
+                float shello = ssphere(shellpo,shellscaleu,0.6);
+                
+                shellpu = mul(RotMat(float3(1.0,.0,.0),oc),shellpu + float3(0.,0.,0.1)) - float3(0.,0.,0.1);
+                shellpu.y += sin( 70. * Polar(mul(rot(-UNITY_PI/2.),shellpu.xz) - float2(.15,0.)).x ) *0.01;
+                float3 shellscaleo = float3(.2,.08,.2);
+                shellscaleo.x = clamp(shellscaleo.x + c(shellpu.z,-.5),0.1,1.);
+                float shellu = ssphere(shellpu,shellscaleo,0.6);
+                float insu = ssphere(shellpu - float3(0.,0.04,0.),shellscaleo,0.6);
+                shello = max(shello,-inso);
+                shellu = max(shellu,-insu);
+
+                float shell = min(shello,shellu);
                 shelld.d = shell;
                 
                 o = shelld;
                 return o;
             }
 
+            data bubble(float3 p)
+            {
+                data o = (data)100.;
+                return o;
+            }
+
             data map(float3 p)
             {
+                float3 sand = p;
                 float3 fish = p;
                 float3 kelp = p;
+                float3 shellp = p;
+                float3 bubble = p;
                 float scale = _FishScale;
                 float kelpScale = _KelpScale;
-                float ShellScale = 1.;
+                float ShellScale = 2.;
+                float bubbleScale = 1.;
+
                 data o = (data)100;
+                sand.y += 0.7;
+                sand.y += (0.5-vnoise(sand.xz * 3.))/10.;
+                o.d = sscube(sand,float3(10.,0.3,10.));
+
 
                 float2 id = floor(fish.xy);
                // fish.y += (rand(id)-0.5);
@@ -279,22 +321,29 @@ Shader "Unlit/fish"
                 //fish.x += + _Time.y/3.;
                 fish = mul(RotMat(float3(0.,1.,0.),-_Time.y/3.),fish)- float3(0.,0.,0.6);
                 
-                //o = Fish(fish,scale);
+                data fishd = Fish(fish,scale);
 
                 data kelpd = (data)100;
                 float ofs = rand(floor(kelp.xz/.3)) * 15.*0.;
 
                 //kelp.xz = mod(kelp.xz,.3) - 0.15;
-                
-                //kelpd = Kelp(kelp,kelpScale ,ofs);
+                //kelp.xz = sin(kelp.xz);
+                kelp.z += 1.2;
+                kelpd = Kelp(kelp,kelpScale ,ofs);
                 
                 //kelpd.d = (ofs > 10) * kelpd.d + (ofs < 10) * 100.;
                 //o = (o.d < kelpd.d)?o:kelpd;
                 
                 data shelld = (data)100;
-                float3 shellp = p;
-                
+                shellp.y += 0.5;
                 shelld = Shell(shellp,ShellScale);
+
+                data bubbled = (data)100.;
+
+                if(o.d > fishd.d)
+                {
+                    o = fishd;
+                }
                 if(o.d > kelpd.d)
                 {
                     o = kelpd;
@@ -302,6 +351,10 @@ Shader "Unlit/fish"
                 if(o.d > shelld.d)
                 {
                     o = shelld;
+                }
+                if(o.d > bubbled.d)
+                {
+                    o = bubbled;
                 }
                 return o;
             }
@@ -319,7 +372,7 @@ Shader "Unlit/fish"
                 {
                     float3 rp = ro + rd * depth;
                     data d = map(rp);
-                    if(d.d < DELTA)
+                    if(d.d < DELTA * depth)
                     {
                         return depth;
                     }
