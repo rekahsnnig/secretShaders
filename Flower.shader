@@ -222,15 +222,16 @@ Shader "geometry/Flower"
             {
             
                 i.uv += float2(_PUVS,_PUVS);
-               // float c = simplex3d(i.obj * 100.);
-                clip(( length(i.uv )>_TH) * -1.);
+                float c = simplex3d(i.obj * 1000.);
+                clip(( length(i.uv )>_TH || c < 0.1) * -1.);
                 //i.uv = (i.uv + float2(1.,1.)) /2.; 
                 float3 lp = mul(unity_WorldToObject,float4(_WorldSpaceLightPos0.xyz,1.)).xyz;
                 float3 light = normalize(lp - i.obj); 
-                fixed3 col = frac(i.obj*3.) * .7 + .3;
+                fixed3 col = random3(i.obj) * .7 + .3;
                 float diff = .5 + max(.5 * dot(light,i.normal),.0);
                 col *= diff;
                // col = i.normal;
+               col = pow(col,float3(.4545,.4545,.4545));
                 return float4(col,.5 + length(i.uv) * .5);
             }
             ENDCG
