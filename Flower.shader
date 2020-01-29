@@ -11,7 +11,7 @@ Shader "geometry/Flower"
         _SIZE("Size",float) = 1.
         _RH("random height",float) = 1
         _RR("random range",float) = 1
-        
+        _TH("threshold",range(0.,1.5)) = .5
     }
     SubShader
     {
@@ -156,6 +156,7 @@ Shader "geometry/Flower"
             float _SIZE;
             float _RR;
             float _RH;
+            float _TH;
 
             [maxvertexcount(81) ]
              void geom(triangle v2g input[3], inout TriangleStream<g2f> OutputStream)
@@ -181,13 +182,13 @@ Shader "geometry/Flower"
                 float size = _SIZE * (random3(po)*.5 + .5);
                 
                 float ds[4] = {0.,.7,-.7,0.};
-                float dn[4] = {0.,1.3,1.3,2.};
+                float dn[4] = {0.,.7,.7,2.};
                 float uv[2] = {-1,1};
                 
                 float3 a = s * (dn[0] + dn[0])*dnns + n * dn[0]*dns + sn * ds[0]*dss + vvs.xyz ;
                 float3 b = s * (dn[1] + dn[1])*dnns + n * dn[1]*dns + sn * ds[1]*dss  + vvs.xyz;
                 float3 c = s * (dn[2] + dn[2])*dnns + n * dn[2]*dns + sn * ds[2]*dss  + vvs.xyz;
-                float3 d = s * (dn[3] + dn[3])*dnns + n * dn[3]*dns + sn * ds[3]*dss  + vvs.xyz + s * _PTARE;
+                float3 d = s * (dn[3] + dn[3])*dnns + n * dn[3]*dns + sn * ds[3]*dss  + vvs.xyz + sn * _PTARE;
                     
                 float3 na[2] = {calcNormal(a,b,c),calcNormal(b,c,d)};
                 
@@ -198,12 +199,12 @@ Shader "geometry/Flower"
                     for(int j = 0; j < CYCLE  ; j++)
                     {
                         float rad = (360./CYCLE) * (j + 1) * (UNITY_PI/180.) + _PESL * (h + 1.);
-                        float layerA = ((90./LAYER) * (h + 1.)) * (UNITY_PI/180.);
+                        float layerA = ((140./LAYER) * (h + 1.)) * (UNITY_PI/180.);
                         [unroll]
-                        for(int i = 0.; i < 4; i++)
+                        for(int i = 0; i < 4; i++)
                         {
                             float4 p = po;
-                            float3 pd = mul( RotMat(sn,layerA),s * (dn[i] + dn[i]) * dnns + n * dn[i] * dns + sn * ds[i] * dss  + (i > 2) * s * _PTARE)* size;
+                            float3 pd = mul( RotMat(sn,layerA),(s * (dn[i] + dn[i]) * dnns + n * dn[i] * dns + sn * ds[i] * dss  + (i == 3) * sn * _PTARE)* size );
                             pd = mul( RotMat(n,rad),pd ) + vvs.xyz;
                             v.vertex = UnityObjectToClipPos(float4(pd,1.));
                             v.normal = mul(RotMat(sn,layerA),na[fmod(i,2)]);
@@ -222,7 +223,7 @@ Shader "geometry/Flower"
             
                 i.uv += float2(_PUVS,_PUVS);
                // float c = simplex3d(i.obj * 100.);
-                clip(( length(i.uv )>0.2) * -1.);
+                clip(( length(i.uv )>_TH) * -1.);
                 //i.uv = (i.uv + float2(1.,1.)) /2.; 
                 float3 lp = mul(unity_WorldToObject,float4(_WorldSpaceLightPos0.xyz,1.)).xyz;
                 float3 light = normalize(lp - i.obj); 
@@ -230,7 +231,7 @@ Shader "geometry/Flower"
                 float diff = .5 + max(.5 * dot(light,i.normal),.0);
                 col *= diff;
                // col = i.normal;
-                return float4(col,.7 + length(i.uv) * .3);
+                return float4(col,.5 + length(i.uv) * .5);
             }
             ENDCG
         }
