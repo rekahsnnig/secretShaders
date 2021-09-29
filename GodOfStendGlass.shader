@@ -3,13 +3,125 @@ Shader "Unlit/StendGrass3"
     Properties
     {
         //_MainTex ("Texture", 2D) = "white" {}
+        _Size("Blur Size",float) = 1
         _Scale("Scale",float) = 10.
         _Rate("Rate",range(0,1)) = 0.5
         _Speed("Move Speed",float) = 0.
     }
     SubShader
     {
-        
+        Tags {"Queue" = "Transparent" "RenderType" = "Transparent"}
+        GrabPass{"_GrabTex0"}
+
+        Pass
+        {
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+
+            #include "UnityCG.cginc"
+
+            struct appdata
+            {
+                float4 vertex : POSITION;
+                float2 uv : TEXCOORD0;
+            };
+
+            struct v2f
+            {
+                float4 uv : TEXCOORD0;
+                float4 vertex : SV_POSITION;
+            };
+
+            sampler2D _GrabTex0;
+            float _Size;
+
+            v2f vert (appdata v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.uv = ComputeGrabScreenPos(o.vertex);
+                return o;
+            }
+
+            fixed4 frag (v2f i) : SV_Target
+            {
+                float Size = _Size;
+                Size = max(1,Size);
+                fixed4 col = 0.;
+                float2 uv = i.uv.xy/i.uv.w;
+                float3 texelSize = float3(1./_ScreenParams.xy,0.);
+                float weightSum = 0.;
+                //[unroll]
+                for(float i = -Size ; i <= Size; i++)
+                {
+                    float normDistance = abs(i/Size);
+                    float weight = exp(-.5 * pow(normDistance , 2.)*5.);
+                    weightSum += weight;
+                    col += tex2D(_GrabTex0,uv + i * texelSize.xz)*weight;
+                   // col += tex2D(_GrabTex,uv + i * texelSize.zy)*weight;
+                }
+                col /= weightSum * 1.;
+                return col;
+            }
+            ENDCG
+        }
+        GrabPass{"_GrabTex2"}
+
+        Pass
+        {
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+
+            #include "UnityCG.cginc"
+
+            struct appdata
+            {
+                float4 vertex : POSITION;
+                float2 uv : TEXCOORD0;
+            };
+
+            struct v2f
+            {
+                float4 uv : TEXCOORD0;
+                float4 vertex : SV_POSITION;
+            };
+
+            sampler2D _GrabTex2;
+            float _Size;
+
+            v2f vert (appdata v)
+            {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.uv = ComputeGrabScreenPos(o.vertex);
+                return o;
+            }
+
+            fixed4 frag (v2f i) : SV_Target
+            {
+                float Size = _Size;
+                Size = max(1,Size);
+                fixed4 col = 0.;
+                float2 uv = i.uv.xy/i.uv.w;
+                float3 texelSize = float3(1./_ScreenParams.xy,0.);
+                float weightSum = 0.;
+                //[unroll]
+                for(float i = -Size ; i <= Size; i++)
+                {
+                    float normDistance = abs(i/Size);
+                    float weight = exp(-.5 * pow(normDistance , 2.)*5.);
+                    weightSum += weight;
+                    //col += tex2D(_GrabTex,uv + i * texelSize.xz)*weight;
+                    col += tex2D(_GrabTex2,uv + i * texelSize.zy)*weight;
+                }
+                col /= weightSum * 1.;
+              //  col = tex2D(_GrabTex,uv);
+                return col;
+            }
+            ENDCG
+        }
         Tags {"Queue" = "Transparent" "RenderType" = "Transparent" "LightMode"="ForwardBase"}
         GrabPass{"_GrabTex"}
         Pass
