@@ -4,6 +4,8 @@ Shader "Unlit/StendGrass3"
     {
         //_MainTex ("Texture", 2D) = "white" {}
         _Scale("Scale",float) = 10.
+        _Rate("Rate",range(0,1)) = 0.5
+        _Speed("Move Speed",float) = 0.
     }
     SubShader
     {
@@ -40,6 +42,8 @@ Shader "Unlit/StendGrass3"
             float4 _MainTex_ST;
             float _Scale;
             float4 _LightColor0;
+            float _Rate;
+            float _Speed;
 
             v2f vert (appdata v)
             {
@@ -93,7 +97,7 @@ Shader "Unlit/StendGrass3"
                         {
                             float3 neighbor = float3(x, y ,z);
                             float3 rpos = float3(random33(fp+neighbor));
-                            float3 pos = sin( (rpos*6. +_Time.y/2.) )* 0.5 + 0.5;
+                            float3 pos = sin( (rpos*6. +_Time.y/2. * _Speed) )* 0.5 + 0.5;
                             float divs = length(neighbor + pos - sp);
                             if(dist > divs)
                             {
@@ -138,7 +142,7 @@ Shader "Unlit/StendGrass3"
                 i.normal = dir;
                 //i.normal.x += step(opos.z,.5);
                 half4 diff = saturate(dot(i.normal, ld)) * _LightColor0;
-                diff = lerp(diff,1.,.3);
+                diff = lerp(diff,1.,_Rate);
                 half3 sp = pow(max(0, dot(i.normal, halfDir)), 10. * 128.0) * col.rgb;
 
                 col.rgb = diff * col.rgb + sp * col.rgb;
